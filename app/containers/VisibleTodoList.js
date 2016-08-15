@@ -2,26 +2,67 @@
  * @fileOverview Контейнер для списка дел
  */
 
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 import { withRouter } from 'react-router';
-import { toggleTodo } from '../actions/index';
-import { getVisibleTodos } from '../reducers';
+import * as actions from '../actions';
+import { getVisibleTodos, getIsFetching, getErrorMessage } from '../reducers';
 import TodoList from '../components/TodoList';
+import FetchError from '../components/FetchError';
 
-const mapStateToProps = (state, { params }) => ({
-  todos: getVisibleTodos(state, params.filter || 'all')
-});
+class VisibleTodoList extends Component {
+  componentDidMount() {
+    this.fetchData();
+  }
+
+  componentDidUpdate(prevProps) {
+    if (this.props.filter !== prevProps.filter) {
+      this.fetchData();
+    }
+  }
+
+  fetchData() {
+    const { filter, fetchTodos } = this.props;
+    fetchTodos(filter).then(() => console.log('done!'));
+  }
+
+  render() {
+    const { toggleTodo, todos, isFetching, errorMessage } = this.props;
+    if (isFetching && !todos.length) {
+      return <p>Loading...</p>;
+    }
+    if (errorMessage && !todos.length) {
+      return (
+        <FetchError
+          message={errorMessage}
+          onRetry={() => this.fetchData()}
+        />
+      );
+    }
+
+    return (
+      <TodoList
+        todos={todos}
+        onTodoClick={toggleTodo}
+      />
+    );
+  }
+}
+
+const mapStateToProps = (state, { params }) => {
+  const filter = params.filter || 'all';
+  return {
+    todos: getVisibleTodos(state, filter),
+    isFetching: getIsFetching(state, filter),
+    errorMessage: getErrorMessage(state, filter),
+    filter
+  };
+};
 
 // при помощи withRouter компонент VisibleTodoList получает параметры роутера в кач-ве своих свойств
-const VisibleTodoList = withRouter(connect(
+VisibleTodoList = withRouter(connect(
   mapStateToProps,
-  { onTodoClick: toggleTodo }
-  // сокращение для:
-  // const mapDispatchToProps = (dispatch) => ({
-  //   onTodoClick(id) {
-  //     dispatch(toggleTodo(id));
-  //   }
-  // });
-)(TodoList));
+  actions
+)(VisibleTodoList));
 
 export default VisibleTodoList;
